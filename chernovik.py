@@ -5,11 +5,6 @@ import matplotlib.pyplot as plt
 import scipy.optimize as opt
 streams = pd.read_excel('streams.xlsx', index_col=0, sheet_name='simple')
 
-
-
-
-
-pi_orc=5
 def CalcPP(pi,pi_orc):
     #pi = 2
     #pi_orc = 10
@@ -153,56 +148,35 @@ def CalcPP(pi,pi_orc):
 
         return -KPD
 
-    res=opt.minimize(CalcGH,(0.66,0.66),method='Nelder-Mead', bounds=((0.2,5),(0.05,0.95)), tol=10**-2)
+    res=opt.minimize(CalcGH,(0.6,0.6),method='Nelder-Mead', bounds=((0.2,6),(0.01,0.99)), tol=10**-1)
     KPD = -CalcGH(res.x)
     return res.x[0],res.x[1],KPD
-n = 9
-pi = np.linspace(2,10,n)
-pi_orc = np.linspace(5,29,n)
+n = 4
+pi = np.linspace(2,20,n)
+pi_orc = np.linspace(5,50,n)
 kpd = np.zeros((n,n),dtype="float32")
 Gopt = np.zeros((n,n),dtype="float32")
 Hopt = np.zeros((n,n),dtype="float32")
 for i in range(0,n):
     for j in range(0,n):
         res = CalcPP(pi[j], pi_orc[i])
-
         kpd[i, j] = res[2]
         Gopt[i, j] = res[0]
         Hopt[i, j] = res[1]
 print(kpd)
-
-plt.plot(pi,kpd[:,0],label=str(pi_orc[0]))
-plt.plot(pi,kpd[:,1],label=str(pi_orc[1]))
-plt.plot(pi,kpd[:,2],label=str(pi_orc[2]))
-plt.plot(pi,kpd[:,3],label=str(pi_orc[3]))
-# plt.plot(pi,kpd[:,4],label=str(pi_orc[4]))
-# plt.plot(pi,kpd[:,5],label=str(pi_orc[5]))
-# plt.plot(pi,kpd[:,6],label=str(pi_orc[6]))
-# plt.plot(pi,kpd[:,7],label=str(pi_orc[7]))
-# plt.plot(pi,kpd[:,8],label=str(pi_orc[8]))
+print(Gopt)
+print(Hopt)
+for i in range(0,n):
+    plt.plot(pi,kpd[:,i],label=str(pi_orc[i]))
 plt.legend()
 plt.show()
 
-plt.plot(pi,Gopt[:,0],label=str(pi_orc[0]))
-plt.plot(pi,Gopt[:,1],label=str(pi_orc[1]))
-plt.plot(pi,Gopt[:,2],label=str(pi_orc[2]))
-plt.plot(pi,Gopt[:,3],label=str(pi_orc[3]))
-# plt.plot(pi,Gopt[:,4],label=str(pi_orc[4]))
-# plt.plot(pi,Gopt[:,5],label=str(pi_orc[5]))
-# plt.plot(pi,Gopt[:,6],label=str(pi_orc[6]))
-# plt.plot(pi,Gopt[:,7],label=str(pi_orc[7]))
-#plt.plot(pi,Gopt[:,8],label=str(pi_orc[8]))
+for i in range(0,n):
+    plt.plot(pi,Gopt[:,i],label=str(pi_orc[i]))
 plt.legend()
 plt.show()
 
-plt.plot(pi,Hopt[:,0],label=str(pi_orc[0]))
-plt.plot(pi,Hopt[:,1],label=str(pi_orc[1]))
-plt.plot(pi,Hopt[:,2],label=str(pi_orc[2]))
-plt.plot(pi,Hopt[:,3],label=str(pi_orc[3]))
-# plt.plot(pi,Hopt[:,4],label=str(pi_orc[4]))
-# plt.plot(pi,Hopt[:,5],label=str(pi_orc[5]))
-# plt.plot(pi,Hopt[:,6],label=str(pi_orc[6]))
-# plt.plot(pi,Hopt[:,7],label=str(pi_orc[7]))
-# plt.plot(pi,Hopt[:,8],label=str(pi_orc[8]))
+for i in range(0,n):
+    plt.plot(pi,Hopt[:,i],label=str(pi_orc[i]))
 plt.legend()
 plt.show()
