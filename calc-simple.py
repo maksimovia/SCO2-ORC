@@ -5,20 +5,13 @@ import matplotlib.pyplot as plt
 import scipy.optimize as opt
 streams = pd.read_excel('streams.xlsx', index_col=0, sheet_name='simple')
 
-def Calc(Input):
-    pi=Input[0]
-    G_orc=Input[1]
-    H_percent=Input[2]
-    pi_orc=Input[3]
-
-
-    Tmax = 600
-    Pk = 7.8
-    #pi = 2
+def Calc(pi,Pk,Tmax):
+    #Tmax = 500
+    #Pk = 7.8
     KPDcomp = 0.9
     KPDturb = 0.9
     Tmin = 32
-
+    dPpot = 0.05
     #cool
     streams.at['Cool-Comp', 'T'] = Tmin
     streams.at['Cool-Comp', 'P'] = Pk
@@ -40,7 +33,7 @@ def Calc(Input):
 
     #heat
     streams.at['Heat-Turb', 'T'] = Tmax
-    streams.at['Heat-Turb', 'P'] = streams.at['Comp-Heat', 'P']
+    streams.at['Heat-Turb', 'P'] = streams.at['Comp-Heat', 'P'] - dPpot
     streams.at['Heat-Turb', 'X'] = streams.at['Comp-Heat', 'X']
     streams.at['Heat-Turb', 'H'] = prop.t_p(streams.at['Heat-Turb', 'T'],streams.at['Heat-Turb', 'P'],streams.at['Heat-Turb', 'X'])['H']
     streams.at['Heat-Turb', 'G'] = streams.at['Comp-Heat', 'G']
@@ -48,106 +41,52 @@ def Calc(Input):
     streams.at['Heat-Turb', 'S'] = prop.t_p(streams.at['Heat-Turb', 'T'],streams.at['Heat-Turb', 'P'],streams.at['Heat-Turb', 'X'])['S']
 
     #turb
-    streams.at['Turb-Evap', 'P'] = Pk
-    streams.at['Turb-Evap', 'X'] = streams.at['Heat-Turb', 'X']
-    streams.at['Turb-Evap', 'G'] = streams.at['Heat-Turb', 'G']
-    Ht = prop.p_s(streams.at['Turb-Evap', 'P'], streams.at['Heat-Turb', 'S'], streams.at['Turb-Evap', 'X'])['H']
-    streams.at['Turb-Evap', 'H'] = streams.at['Heat-Turb', 'H'] - (streams.at['Heat-Turb', 'H']-Ht)*KPDturb
-    streams.at['Turb-Evap', 'T'] = prop.h_p(streams.at['Turb-Evap', 'H'],streams.at['Turb-Evap', 'P'],streams.at['Turb-Evap', 'X'])["T"]
-    streams.at['Turb-Evap', 'Q'] = prop.h_p(streams.at['Turb-Evap', 'H'],streams.at['Turb-Evap', 'P'],streams.at['Turb-Evap', 'X'])["Q"]
-    streams.at['Turb-Evap', 'S'] = prop.h_p(streams.at['Turb-Evap', 'H'],streams.at['Turb-Evap', 'P'],streams.at['Turb-Evap', 'X'])["S"]
-
-    #H_percent = 0.6
-    #evap
-    streams.at['Evap-Cool', 'H'] = (streams.at['Turb-Evap', 'H']-streams.at['Cool-Comp', 'H'])*H_percent+streams.at['Cool-Comp', 'H']
-    streams.at['Evap-Cool', 'P'] = Pk
-    streams.at['Evap-Cool', 'X'] = streams.at['Turb-Evap', 'X']
-    streams.at['Evap-Cool', 'G'] = streams.at['Turb-Evap', 'G']
-    streams.at['Evap-Cool', 'T'] = prop.h_p(streams.at['Evap-Cool', 'H'],streams.at['Evap-Cool', 'P'],streams.at['Evap-Cool', 'X'])["T"]
-    streams.at['Evap-Cool', 'Q'] = prop.h_p(streams.at['Evap-Cool', 'H'],streams.at['Evap-Cool', 'P'],streams.at['Evap-Cool', 'X'])["Q"]
-    streams.at['Evap-Cool', 'S'] = prop.h_p(streams.at['Evap-Cool', 'H'],streams.at['Evap-Cool', 'P'],streams.at['Evap-Cool', 'X'])["S"]
-
-
-    Tmin_orc = 30
-    Fluid_orc = "R236ea"
-    Pk_orc = prop.t_q(Tmin_orc,0,Fluid_orc)["P"]
-    #G_orc = 0.5
-    #ORC Cool
-    streams.at['OCool-OPump', 'P'] = Pk_orc
-    streams.at['OCool-OPump', 'T'] = Tmin_orc
-    streams.at['OCool-OPump', 'X'] = Fluid_orc
-    streams.at['OCool-OPump', 'G'] = G_orc
-    streams.at['OCool-OPump', 'H'] = prop.t_p(streams.at['OCool-OPump', 'T'],streams.at['OCool-OPump', 'P'],streams.at['OCool-OPump', 'X'])["H"]
-    streams.at['OCool-OPump', 'Q'] = prop.t_p(streams.at['OCool-OPump', 'T'],streams.at['OCool-OPump', 'P'],streams.at['OCool-OPump', 'X'])["Q"]
-    streams.at['OCool-OPump', 'S'] = prop.t_p(streams.at['OCool-OPump', 'T'],streams.at['OCool-OPump', 'P'],streams.at['OCool-OPump', 'X'])["S"]
-
-    #pi_orc = 1/0.2444
-    KPDpump = KPDcomp
-    #ORC Pump
-    streams.at['OPump-OEvap', 'P'] = streams.at['OCool-OPump', 'P']*pi_orc
-    streams.at['OPump-OEvap', 'X'] = streams.at['OCool-OPump', 'X']
-    Ht = prop.p_s(streams.at['OPump-OEvap', 'P'], streams.at['OCool-OPump', 'S'], streams.at['OPump-OEvap', 'X'])['H']
-    streams.at['OPump-OEvap', 'H'] = streams.at['OCool-OPump', 'H'] + (Ht - streams.at['OCool-OPump', 'H'])/KPDpump
-    streams.at['OPump-OEvap', 'G'] = streams.at['OCool-OPump', 'G']
-    streams.at['OPump-OEvap', 'T'] = prop.h_p(streams.at['OPump-OEvap', 'H'],streams.at['OPump-OEvap', 'P'],streams.at['OPump-OEvap', 'X'])["T"]
-    streams.at['OPump-OEvap', 'Q'] = prop.h_p(streams.at['OPump-OEvap', 'H'],streams.at['OPump-OEvap', 'P'],streams.at['OPump-OEvap', 'X'])["Q"]
-    streams.at['OPump-OEvap', 'S'] = prop.h_p(streams.at['OPump-OEvap', 'H'],streams.at['OPump-OEvap', 'P'],streams.at['OPump-OEvap', 'X'])["S"]
-
-    #ORC Evap
-    streams.at['OEvap-OTurb', 'P'] = streams.at['OPump-OEvap', 'P']
-    streams.at['OEvap-OTurb', 'H'] = (streams.at['Cool-Comp', 'G']*(streams.at['Turb-Evap', 'H']-streams.at['Evap-Cool', 'H']))/G_orc + streams.at['OPump-OEvap', 'H']
-    streams.at['OEvap-OTurb', 'X'] = "R236ea"
-    streams.at['OEvap-OTurb', 'G'] = G_orc
-    streams.at['OEvap-OTurb', 'T'] = prop.h_p(streams.at['OEvap-OTurb', 'H'],streams.at['OEvap-OTurb', 'P'],streams.at['OEvap-OTurb', 'X'])["T"]
-    streams.at['OEvap-OTurb', 'Q'] = prop.h_p(streams.at['OEvap-OTurb', 'H'],streams.at['OEvap-OTurb', 'P'],streams.at['OEvap-OTurb', 'X'])["Q"]
-    streams.at['OEvap-OTurb', 'S'] = prop.h_p(streams.at['OEvap-OTurb', 'H'],streams.at['OEvap-OTurb', 'P'],streams.at['OEvap-OTurb', 'X'])["S"]
-
-    KPDturb_orc = KPDturb
-    #ORC Turb
-    streams.at['OTurb-OCool', 'P'] = streams.at['OCool-OPump', 'P']
-    streams.at['OTurb-OCool', 'X'] = streams.at['OCool-OPump', 'X']
-    streams.at['OTurb-OCool', 'G'] = streams.at['OCool-OPump', 'G']
-    Ht = prop.p_s(streams.at['OTurb-OCool', 'P'], streams.at['OEvap-OTurb', 'S'], streams.at['OTurb-OCool', 'X'])['H']
-    streams.at['OTurb-OCool', 'H'] = streams.at['OEvap-OTurb', 'H'] - (streams.at['OEvap-OTurb', 'H']-Ht)*KPDturb_orc
-    streams.at['OTurb-OCool', 'T'] = prop.h_p(streams.at['OTurb-OCool', 'H'],streams.at['OTurb-OCool', 'P'],streams.at['OTurb-OCool', 'X'])["T"]
-    streams.at['OTurb-OCool', 'Q'] = prop.h_p(streams.at['OTurb-OCool', 'H'],streams.at['OTurb-OCool', 'P'],streams.at['OTurb-OCool', 'X'])["Q"]
-    streams.at['OTurb-OCool', 'S'] = prop.h_p(streams.at['OTurb-OCool', 'H'],streams.at['OTurb-OCool', 'P'],streams.at['OTurb-OCool', 'X'])["S"]
+    streams.at['Turb-Cool', 'P'] = Pk + dPpot
+    streams.at['Turb-Cool', 'X'] = streams.at['Heat-Turb', 'X']
+    streams.at['Turb-Cool', 'G'] = streams.at['Heat-Turb', 'G']
+    Ht = prop.p_s(streams.at['Turb-Cool', 'P'], streams.at['Heat-Turb', 'S'], streams.at['Turb-Cool', 'X'])['H']
+    streams.at['Turb-Cool', 'H'] = streams.at['Heat-Turb', 'H'] - (streams.at['Heat-Turb', 'H']-Ht)*KPDturb
+    streams.at['Turb-Cool', 'T'] = prop.h_p(streams.at['Turb-Cool', 'H'],streams.at['Turb-Cool', 'P'],streams.at['Turb-Cool', 'X'])["T"]
+    streams.at['Turb-Cool', 'Q'] = prop.h_p(streams.at['Turb-Cool', 'H'],streams.at['Turb-Cool', 'P'],streams.at['Turb-Cool', 'X'])["Q"]
+    streams.at['Turb-Cool', 'S'] = prop.h_p(streams.at['Turb-Cool', 'H'],streams.at['Turb-Cool', 'P'],streams.at['Turb-Cool', 'X'])["S"]
 
     Q = streams.at['Comp-Heat', 'G']*(streams.at['Heat-Turb', 'H']-streams.at['Comp-Heat', 'H'])
-    Nco2 =0.99*streams.at['Heat-Turb', 'G']*(streams.at['Heat-Turb', 'H']-streams.at['Turb-Evap', 'H']) - streams.at['Heat-Turb', 'G']*(streams.at['Comp-Heat', 'H']-streams.at['Cool-Comp', 'H'])/0.99
-    Norc =0.99*streams.at['OTurb-OCool', 'G']*(streams.at['OEvap-OTurb', 'H']-streams.at['OTurb-OCool', 'H']) - streams.at['OEvap-OTurb', 'G']*(streams.at['OPump-OEvap', 'H']-streams.at['OCool-OPump', 'H'])/0.99
-    KPD = (Nco2+Norc)/Q*100
-    #Разбиение и проверка темп. напора
-    n = 50
-    T_co2_evap = np.zeros(n)
-    H_co2_evap = np.linspace(streams.at['Turb-Evap', 'H'], streams.at['Evap-Cool', 'H'], n)
-    for i in range(0,n):
-        T_co2_evap[i] = prop.h_p(H_co2_evap[i],streams.at['Turb-Evap', 'P'],streams.at['Turb-Evap', 'X'])["T"]
-    #Q_co2_evap = -(H_co2_evap-streams.at['Turb-Evap', 'H'])*streams.at['Cool-Comp', 'G']
+    Nco2 =streams.at['Heat-Turb', 'G']*(streams.at['Heat-Turb', 'H']-streams.at['Turb-Cool', 'H']) - streams.at['Heat-Turb', 'G']*(streams.at['Comp-Heat', 'H']-streams.at['Cool-Comp', 'H'])
+    KPD = 0.99*0.99*Nco2/Q*100
+    T = streams.at['Turb-Cool', 'T']
+    return KPD, T
 
-    T_orc_evap = np.zeros(n)
-    H_orc_evap = np.linspace(streams.at['OEvap-OTurb', 'H'], streams.at['OPump-OEvap', 'H'], n)
-    for i in range(0,n):
-        T_orc_evap[i] = prop.h_p(H_orc_evap[i],streams.at['OPump-OEvap', 'P'],streams.at['OPump-OEvap', 'X'])["T"]
-    #Q_orc_evap = -(H_orc_evap-streams.at['OEvap-OTurb', 'H'])*streams.at['OEvap-OTurb', 'G']
-    deltaT = T_co2_evap - T_orc_evap
-    #print(streams)
-    #print(min(deltaT))
-    #print(Pk_orc)
-    if min(deltaT)<10:
-        KPD = 0
-    print(round(pi,3),
-          round(G_orc,3),
-          round(H_percent,3),
-          round(pi_orc,3),
-          round(KPD,3))
-    return -KPD
+# pi = np.linspace(1,30,N)
+# pk = np.linspace(7.5,8.5,M)
+# T = np.array([490,590,690,790])
+# KPD = np.zeros((N,M),dtype='float32')
+# Tres = np.zeros((N,M),dtype='float32')
+# for i in range(0,len(T)):
+#     for k in range(0,M):
+#         for j in range(0,N):
+#             res = Calc(pi[j],pk[k],T[i])
+#             KPD[j, k] = res[0]
+#             Tres[j, k] = res[1]
+#     df = pd.DataFrame(KPD)
+#     df2 = pd.DataFrame(Tres)
+#     with pd.ExcelWriter("calc-simple-res.xlsx",if_sheet_exists='replace',mode='a') as writer:
+#         df.to_excel(writer,sheet_name=str(T[i]))
+#     with pd.ExcelWriter("calc-simple-res.xlsx",if_sheet_exists='overlay',mode='a') as writer2:
+#         df2.to_excel(writer2,sheet_name=str(T[i]),startcol=M+1)
+N = 200
+M = 20
+data = open("simple790.txt", "a")
+pi = np.linspace(1.1,7,N)
+pk = np.linspace(7.5,8.5,M)
+T1 = np.array([490,590,690,790])
+for j in range(0,N):
+    for i in range(0,M):
+        res = Calc(pi[j], pk[i], T1[3])
+        print(res)
+        data.write('\n' + str(round(pi[j], 5))  + '\t' + str(
+            round(pk[i], 5)) + '\t' + str(round(res[1], 5)) + '\t' + str(round(res[0], 5)))
 
-res = opt.minimize(Calc, (2, 0.4, 0.6, 4), method='Nelder-Mead', bounds=((1.5,5),(0.05,2),(0.05, 0.95),(1.5, 5)), tol=10**-2)
-print(res.x)
 
 
-# plt.plot(Q_co2_evap,T_co2_evap)
-# plt.plot(Q_orc_evap,T_orc_evap)
-# plt.show()
+
 
