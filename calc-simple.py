@@ -54,8 +54,69 @@ def Calc(pi,Pk,Tmax):
     Nco2 =streams.at['Heat-Turb', 'G']*(streams.at['Heat-Turb', 'H']-streams.at['Turb-Cool', 'H']) - streams.at['Heat-Turb', 'G']*(streams.at['Comp-Heat', 'H']-streams.at['Cool-Comp', 'H'])
     KPD = 0.99*0.99*Nco2/Q*100
     T = streams.at['Turb-Cool', 'T']
-    return KPD, T
 
+    #TS
+    m = 50
+    #Расширение в турбине
+    Hturb = np.zeros(m)
+    Tturb = np.zeros(m)
+    Sturb = np.zeros(m)
+    Hturb[0] = streams.at['Heat-Turb', 'H']
+    S0 = streams.at['Heat-Turb', 'S']
+    Pturb = np.linspace(streams.at['Heat-Turb', 'P'],streams.at['Turb-Cool', 'P'],m)
+    for i in range(0,m):
+        Hturb[i] = Hturb[0] - (Hturb[0] - prop.p_s(Pturb[i],S0,'CO2')['H'])*KPDturb
+        Sturb[i] = prop.h_p(Hturb[i],Pturb[i],'CO2')['S']
+        Tturb[i] = prop.h_p(Hturb[i], Pturb[i], 'CO2')['T']
+    #Сжатие в компрессоре
+    Hcomp = np.zeros(m)
+    Tcomp = np.zeros(m)
+    Scomp = np.zeros(m)
+    Hcomp[0] = streams.at['Cool-Comp', 'H']
+    S0 = streams.at['Cool-Comp', 'S']
+    Pcomp = np.linspace(streams.at['Cool-Comp', 'P'], streams.at['Comp-Heat', 'P'], m)
+    for i in range(0, m):
+        Hcomp[i] = Hcomp[0] + (prop.p_s(Pcomp[i], S0, 'CO2')['H'] - Hcomp[0]) / KPDcomp
+        Scomp[i] = prop.h_p(Hcomp[i], Pcomp[i], 'CO2')['S']
+        Tcomp[i] = prop.h_p(Hcomp[i], Pcomp[i], 'CO2')['T']
+    #Прогрев гоев
+    Pheat = np.linspace(streams.at['Comp-Heat', 'P'],streams.at['Heat-Turb', 'P'],m)
+    Hheat = np.linspace(streams.at['Comp-Heat', 'H'],streams.at['Heat-Turb', 'H'],m)
+    Theat = np.zeros(m)
+    Sheat = np.zeros(m)
+    for i in range(0,m):
+        Theat[i] = prop.h_p(Hheat[i],Pheat[i],'CO2')['T']
+        Sheat[i] = prop.h_p(Hheat[i], Pheat[i], 'CO2')['S']
+
+    # Холодный источние
+    Pcool = np.linspace(streams.at['Cool-Comp', 'P'], streams.at['Turb-Cool', 'P'], m)
+    Hcool = np.linspace(streams.at['Cool-Comp', 'H'], streams.at['Turb-Cool', 'H'], m)
+    Tcool = np.zeros(m)
+    Scool= np.zeros(m)
+    for i in range(0, m):
+        Tcool[i] = prop.h_p(Hcool[i], Pcool[i], 'CO2')['T']
+        Scool[i] = prop.h_p(Hcool[i], Pcool[i], 'CO2')['S']
+    #линия насыщения
+    Tsat = np.linspace(1, 30, m)
+    Tsat=np.append(Tsat,[30.5, 30.6,30.7,30.8,30.9,30.95,30.96,30.97,30.9782])
+    Ssat0 = np.zeros(len(Tsat))
+    Ssat1 = np.zeros(len(Tsat))
+    Tsats = np.append(Tsat,np.flip(Tsat))
+    for i in range(0,len(Tsat)):
+        Ssat0[i] = prop.t_q(Tsat[i],0,'CO2')['S']
+        Ssat1[i] = prop.t_q(Tsat[i],1,'CO2')['S']
+    Ssat = np.append(Ssat0,np.flip(Ssat1))
+
+    print(Ssat0)
+    plt.plot(Sturb, Tturb,color='navy')
+    plt.plot(Scomp, Tcomp,color='navy')
+    plt.plot(Sheat, Theat,color='navy')
+    plt.plot(Scool, Tcool,color='navy')
+    plt.plot(Ssat, Tsats,color='red')
+    plt.show()
+
+    return KPD, T
+Calc(4,7.8,500)
 # pi = np.linspace(1,30,N)
 # pk = np.linspace(7.5,8.5,M)
 # T = np.array([490,590,690,790])
@@ -73,18 +134,18 @@ def Calc(pi,Pk,Tmax):
 #         df.to_excel(writer,sheet_name=str(T[i]))
 #     with pd.ExcelWriter("calc-simple-res.xlsx",if_sheet_exists='overlay',mode='a') as writer2:
 #         df2.to_excel(writer2,sheet_name=str(T[i]),startcol=M+1)
-N = 200
-M = 20
-data = open("simple790.txt", "a")
-pi = np.linspace(1.1,7,N)
-pk = np.linspace(7.5,8.5,M)
-T1 = np.array([490,590,690,790])
-for j in range(0,N):
-    for i in range(0,M):
-        res = Calc(pi[j], pk[i], T1[3])
-        print(res)
-        data.write('\n' + str(round(pi[j], 5))  + '\t' + str(
-            round(pk[i], 5)) + '\t' + str(round(res[1], 5)) + '\t' + str(round(res[0], 5)))
+# N = 200
+# M = 20
+# data = open("simple790.txt", "a")
+# pi = np.linspace(1.1,7,N)
+# pk = np.linspace(7.5,8.5,M)
+# T1 = np.array([490,590,690,790])
+# for j in range(0,N):
+#     for i in range(0,M):
+#         res = Calc(pi[j], pk[i], T1[3])
+#         print(res)
+#         data.write('\n' + str(round(pi[j], 5))  + '\t' + str(
+#             round(pk[i], 5)) + '\t' + str(round(res[1], 5)) + '\t' + str(round(res[0], 5)))
 
 
 
